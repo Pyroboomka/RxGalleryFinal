@@ -5,6 +5,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.provider.MediaStore;
 import androidx.annotation.Nullable;
 import androidx.exifinterface.media.ExifInterface;
@@ -28,6 +29,24 @@ public class MediaUtils {
 
     public static List<MediaBean> getMediaWithImageList(Context context, int page, int limit) {
         return getMediaWithImageList(context, String.valueOf(Integer.MIN_VALUE), page, limit);
+    }
+
+    private static Bundle createSqlQueryBundle(String selection, String[] selectionArgs, String sortOrder, int limit, int page) {
+        if (selection == null && selectionArgs == null && sortOrder == null) {
+            return null;
+        }
+        Bundle queryArgs = new Bundle();
+        if (selection != null) {
+            queryArgs.putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection);
+        }
+        if (selectionArgs != null) {
+            queryArgs.putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, selectionArgs);
+        }
+        if (sortOrder != null) {
+            queryArgs.putString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER, sortOrder);
+        }
+        queryArgs.putString(ContentResolver.QUERY_ARG_SQL_LIMIT, limit + " offset " + page);
+        return queryArgs;
     }
 
     /**
@@ -60,9 +79,16 @@ public class MediaUtils {
             selection = MediaStore.Images.Media.BUCKET_ID + "=?";
             selectionArgs = new String[]{bucketId};
         }
-        Cursor cursor = contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection.toArray(new String[projection.size()]), selection,
-                selectionArgs, MediaStore.Images.Media.DATE_ADDED + " DESC LIMIT " + limit + " OFFSET " + offset);
+        Cursor cursor = null;
+        // 适配Android 11
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Bundle bundle = createSqlQueryBundle(selection, selectionArgs, MediaStore.Images.Media.DATE_ADDED + " DESC", limit, offset);
+            cursor = contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection.toArray(new String[projection.size()]), bundle, null);
+        } else {
+            cursor = contentResolver.query(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection.toArray(new String[projection.size()]), selection,
+                    selectionArgs, MediaStore.Images.Media.DATE_ADDED + " DESC LIMIT " + limit + " OFFSET " + offset);
+        }
         if (cursor != null) {
             int count = cursor.getCount();
             if (count > 0) {
@@ -116,9 +142,16 @@ public class MediaUtils {
             selectionArgs = new String[]{bucketId};
         }
 
-        Cursor cursor = contentResolver.query(
-                MediaStore.Video.Media.EXTERNAL_CONTENT_URI, projection.toArray(new String[projection.size()]), selection,
-                selectionArgs, MediaStore.Video.Media.DATE_ADDED + " DESC LIMIT " + limit + " OFFSET " + offset);
+        Cursor cursor = null;
+        // 适配Android 11
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Bundle bundle = createSqlQueryBundle(selection, selectionArgs, MediaStore.Video.Media.DATE_ADDED + " DESC", limit, offset);
+            cursor = contentResolver.query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, projection.toArray(new String[projection.size()]), bundle, null);
+        } else {
+            cursor = contentResolver.query(
+            MediaStore.Video.Media.EXTERNAL_CONTENT_URI, projection.toArray(new String[projection.size()]), selection,
+            selectionArgs, MediaStore.Video.Media.DATE_ADDED + " DESC LIMIT " + limit + " OFFSET " + offset);
+        }
         if (cursor != null) {
             int count = cursor.getCount();
             if (count > 0) {
